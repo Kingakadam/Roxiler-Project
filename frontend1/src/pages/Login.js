@@ -145,7 +145,7 @@ export default function Login() {
             Don't have an account?{" "}
             <span
               style={styles.signupLink}
-              onClick={() => navigate("/role-selection")}
+              onClick={() => navigate("/")}
             >
               Create one now
             </span>
