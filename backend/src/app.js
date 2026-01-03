@@ -12,31 +12,30 @@ const ownerRoutes = require("./routes/ownerRoutes");
 
 const app = express();
 
-/* ===== CORS (FINAL & PERMANENT FIX) ===== */
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (Postman, curl, server-to-server)
-      if (!origin) return callback(null, true);
+/* ===== CORS (SAFE – NO CRASH) ===== */
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow server-to-server, Postman, health checks
+    if (!origin) return callback(null, true);
 
-      // Allow localhost + ALL Vercel deployments
-      if (
-        origin === "http://localhost:3000" ||
-        origin.endsWith(".vercel.app")
-      ) {
-        return callback(null, true);
-      }
+    // Allow localhost and ALL Vercel deployments
+    if (
+      origin === "http://localhost:3000" ||
+      origin.endsWith(".vercel.app")
+    ) {
+      return callback(null, true);
+    }
 
-      return callback(new Error("Not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  })
-);
+    // ❗ IMPORTANT: do NOT throw error
+    return callback(null, false);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
 
-// ✅ Handle preflight requests explicitly
-app.options("*", cors());
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 /* ===== BODY PARSERS ===== */
 app.use(express.json());
@@ -58,32 +57,36 @@ app.use((req, res) => {
 });
 
 /* ===== DB SYNC & ADMIN SEED ===== */
-syncModels().then(async () => {
-  const { User } = require("./models");
-  const bcrypt = require("bcryptjs");
+syncModels()
+  .then(async () => {
+    const { User } = require("./models");
+    const bcrypt = require("bcryptjs");
 
-  const adminExists = await User.findOne({
-    where: { role: process.env.ADMIN_ROLE },
-  });
-
-  if (!adminExists) {
-    const hashedPassword = await bcrypt.hash(
-      process.env.ADMIN_PASSWORD,
-      10
-    );
-
-    await User.create({
-      name: process.env.ADMIN_NAME,
-      email: process.env.ADMIN_EMAIL,
-      address: "Admin Address",
-      password: hashedPassword,
-      role: process.env.ADMIN_ROLE,
+    const adminExists = await User.findOne({
+      where: { role: process.env.ADMIN_ROLE },
     });
 
-    console.log("✅ Admin user created");
-  } else {
-    console.log("ℹ️ Admin already exists");
-  }
-});
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash(
+        process.env.ADMIN_PASSWORD,
+        10
+      );
+
+      await User.create({
+        name: process.env.ADMIN_NAME,
+        email: process.env.ADMIN_EMAIL,
+        address: "Admin Address",
+        password: hashedPassword,
+        role: process.env.ADMIN_ROLE,
+      });
+
+      console.log("✅ Admin user created");
+    } else {
+      console.log("ℹ️ Admin already exists");
+    }
+  })
+  .catch((err) => {
+    console.error("❌ DB sync failed:", err);
+  });
 
 module.exports = app;
