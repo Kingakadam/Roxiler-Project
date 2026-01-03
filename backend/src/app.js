@@ -12,14 +12,31 @@ const ownerRoutes = require("./routes/ownerRoutes");
 
 const app = express();
 
-/* ===== CORS ===== */
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://your-frontend.vercel.app" // 🔁 replace after deploy
-  ],
-  credentials: true
-}));
+/* ===== CORS (FINAL & PERMANENT FIX) ===== */
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (Postman, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Allow localhost + ALL Vercel deployments
+      if (
+        origin === "http://localhost:3000" ||
+        origin.endsWith(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+
+// ✅ Handle preflight requests explicitly
+app.options("*", cors());
 
 /* ===== BODY PARSERS ===== */
 app.use(express.json());
@@ -46,7 +63,7 @@ syncModels().then(async () => {
   const bcrypt = require("bcryptjs");
 
   const adminExists = await User.findOne({
-    where: { role: process.env.ADMIN_ROLE }
+    where: { role: process.env.ADMIN_ROLE },
   });
 
   if (!adminExists) {

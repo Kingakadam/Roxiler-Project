@@ -1,31 +1,35 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
+  baseURL: process.env.REACT_APP_API_URL,
+  withCredentials: true, // important for CORS consistency
 });
 
 // Automatically attach token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 
-  // ❌ Do NOT add token for public routes
+  // Public routes (NO token)
   const publicRoutes = [
     "/auth/login",
     "/auth/signup",
-    "/auth/owner/signup"
+    "/auth/owner/signup",
   ];
 
-  if (publicRoutes.includes(config.url)) {
+  const isPublicRoute = publicRoutes.some((route) =>
+    config.url?.startsWith(route)
+  );
+
+  if (isPublicRoute) {
     return config;
   }
 
-  // ✔ Only add token to protected routes
+  // Protected routes → attach token
   if (token) {
-    config.headers["Authorization"] = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
   return config;
 });
-
 
 export default api;
