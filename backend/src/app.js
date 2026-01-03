@@ -12,43 +12,60 @@ const ownerRoutes = require("./routes/ownerRoutes");
 
 const app = express();
 
-// Middlewares
-app.use(cors());
+/* ===== CORS ===== */
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://your-frontend.vercel.app" // 🔁 replace after deploy
+  ],
+  credentials: true
+}));
+
+/* ===== BODY PARSERS ===== */
 app.use(express.json());
 
-// Health Check
+/* ===== HEALTH CHECK ===== */
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Backend running successfully 🚀" });
 });
 
-// Routes
-app.use("/api/auth", authRoutes);     // signup, login
-app.use("/api/admin", adminRoutes);   // admin features (protected)
-app.use("/api", userRoutes);          // normal user: /stores, rate
-app.use("/api/owner", ownerRoutes);   // store owner dashboard
+/* ===== ROUTES ===== */
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api", userRoutes);
+app.use("/api/owner", ownerRoutes);
 
-
-// 404 Handler
+/* ===== 404 HANDLER ===== */
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-// Sync Models on startup
+/* ===== DB SYNC & ADMIN SEED ===== */
 syncModels().then(async () => {
   const { User } = require("./models");
   const bcrypt = require("bcryptjs");
 
-  // Create admin user if not exists
-  const adminExists = await User.findOne({ where: { role: "ADMIN" } });
+  const adminExists = await User.findOne({
+    where: { role: process.env.ADMIN_ROLE }
+  });
+
   if (!adminExists) {
-    const hashedPassword = await bcrypt.hash("Ironman@1234", 10);
+    const hashedPassword = await bcrypt.hash(
+      process.env.ADMIN_PASSWORD,
+      10
+    );
+
     await User.create({
-      name: "ironman",
-      email: "admin@gmail.com",
+      name: process.env.ADMIN_NAME,
+      email: process.env.ADMIN_EMAIL,
       address: "Admin Address",
       password: hashedPassword,
-      role: "ADMIN",
+      role: process.env.ADMIN_ROLE,
     });
+
+    console.log("✅ Admin user created");
+  } else {
+    console.log("ℹ️ Admin already exists");
   }
 });
 
