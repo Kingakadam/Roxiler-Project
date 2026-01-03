@@ -12,10 +12,10 @@ const ownerRoutes = require("./routes/ownerRoutes");
 
 const app = express();
 
-/* ===== CORS (SAFE – NO CRASH) ===== */
+/* ===== CORS (EXPRESS 5 SAFE) ===== */
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow server-to-server, Postman, health checks
+    // Allow Postman / server-to-server / health checks
     if (!origin) return callback(null, true);
 
     // Allow localhost and ALL Vercel deployments
@@ -26,16 +26,15 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // ❗ IMPORTANT: do NOT throw error
+    // Block others silently (DO NOT throw)
     return callback(null, false);
   },
+  credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 /* ===== BODY PARSERS ===== */
 app.use(express.json());
